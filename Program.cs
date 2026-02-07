@@ -1,25 +1,23 @@
 using HORDE;
 
-const int BUILD = 2;
+const int BUILD = 3;
 
 if (args.Contains("--stdio"))
 {
-    var builder = Host.CreateApplicationBuilder(args);
-    builder.Services
-        .AddMcpServer()
-        .WithStdioServerTransport()
-        .WithToolsFromAssembly();
-    builder.Services.AddSingleton<AgentManager>();
-    builder.Logging.ClearProviders();
-    await builder.Build().RunAsync();
+    var b = Host.CreateApplicationBuilder(args);
+    b.Services.AddMcpServer().WithStdioServerTransport().WithToolsFromAssembly();
+    b.Services.AddSingleton<AgentManager>();
+    b.Logging.ClearProviders();
+    await b.Build().RunAsync();
 }
 else
 {
-    var builder = WebApplication.CreateBuilder(args);
-    builder.AddHordeTools();
+    var b = WebApplication.CreateBuilder(args);
+    b.Services.AddMcpServer().WithHttpTransport(o => o.IdleTimeout = TimeSpan.FromDays(365)).WithToolsFromAssembly();
+    b.Services.AddSingleton<AgentManager>();
 
-    var app = builder.Build();
-    app.MapHordeTools();
+    var app = b.Build();
+    app.MapMcp("/mcp");
     app.MapGet("/", () => new
     {
         service = "HORDE MCP Server",
@@ -32,23 +30,4 @@ else
     Console.WriteLine($"HORDE MCP Server v1.0.0 build {BUILD}");
     Console.WriteLine($"http://0.0.0.0:{port}/mcp");
     await app.RunAsync($"http://0.0.0.0:{port}");
-}
-
-public static class HordeExtensions
-{
-    public static WebApplicationBuilder AddHordeTools(this WebApplicationBuilder builder)
-    {
-        builder.Services
-            .AddMcpServer()
-            .WithHttpTransport(options => options.IdleTimeout = TimeSpan.FromDays(365))
-            .WithToolsFromAssembly();
-        builder.Services.AddSingleton<AgentManager>();
-        return builder;
-    }
-
-    public static WebApplication MapHordeTools(this WebApplication app)
-    {
-        app.MapMcp("/mcp");
-        return app;
-    }
 }
